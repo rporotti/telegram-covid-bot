@@ -322,7 +322,7 @@ def main():
                           port=PORT,
                           url_path=token)
     # updater.bot.set_webhook(url=settings.WEBHOOK_URL)
-    updater.bot.set_webhook("https://vaccineitalybot.herokuapp.com/" + token)
+    updater.bot.set_webhook(os.environ.get("HEROKU_APP", None) + token)
 
     updater.idle()
 

@@ -20,12 +20,12 @@ from telegram.ext import CallbackContext, CommandHandler, Updater
 import os
 from fetch import regions
 
-
-session = boto3.Session(
-    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", None),
-    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", None),
-)
-s3 = session.resource('s3')
+if os.environ.get("WITH_AWS", None):
+    session = boto3.Session(
+        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", None),
+        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", None),
+    )
+    s3 = session.resource('s3')
 
 
 logging.basicConfig(
@@ -244,7 +244,8 @@ def remove_subscription(name, context):
         for user in users:
             if user.strip("\n") != name:
                 su.write(user)
-    send_to_S3()
+    if os.environ.get("WITH_AWS", None):
+        send_to_S3()
 
 def subscribe(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat_id
@@ -262,7 +263,8 @@ def subscribe(update: Update, context: CallbackContext) -> None:
 
         with open("subscribed_users.txt", "a") as su:
             su.write(str(chat_id) + "\n")
-        send_to_S3()
+        if os.environ.get("WITH_AWS", None):
+            send_to_S3()
         text = "You will receive daily updates at 20:00 CET."
 
     update.message.reply_text(text)
@@ -293,10 +295,16 @@ def badbot(update: Update, context: CallbackContext) -> None:
 
 def main():
     updater = Updater(token, use_context=True)
+    
+    if os.environ.get("WITH_AWS", None):
+        get_from_S3()
+    if os.path.isfile("subscribed_users.txt"):
+        with open("subscribed_users.txt", "r") as su:
+            subscribed_users = [s.strip("\n") for s in su.readlines()]
+    else:
+        subscribed_users = []
+        times = []
 
-    get_from_S3()
-    with open("subscribed_users.txt", "r") as su:
-        subscribed_users = [s.strip("\n") for s in su.readlines()]
 
     for user in subscribed_users:
         updater.job_queue.run_daily(
@@ -318,12 +326,18 @@ def main():
     dispatcher.add_handler(CommandHandler("goodbot", goodbot))
     dispatcher.add_handler(CommandHandler("badbot", badbot))
 
-    updater.start_webhook(listen="0.0.0.0",
-                          port=PORT,
-                          url_path=token)
-    # updater.bot.set_webhook(url=settings.WEBHOOK_URL)
-    updater.bot.set_webhook(os.environ.get("HEROKU_APP", None) + token)
-
+    if os.environ.get("IS_HEROKU", None):
+        updater.start_webhook(listen="0.0.0.0",
+                              port=PORT,
+                              url_path=token)
+        # updater.bot.set_webhook(url=settings.WEBHOOK_URL)
+        updater.bot.set_webhook(
+                "https://{}.herokuapp.com/".format(os.environ.get(
+                "APP_NAME", None)) + token)
+    else:
+        updater.start_polling()
+        
+        
     updater.idle()
 
 

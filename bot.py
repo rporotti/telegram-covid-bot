@@ -1,11 +1,13 @@
 import codecs
 import io
 import logging
+import os
 import re
 from datetime import date
 from datetime import datetime as dt
 from datetime import time
 from datetime import timedelta as td
+
 import boto3
 import botocore
 import geopandas as gpd
@@ -17,7 +19,7 @@ import requests
 from jinja2 import Template
 from telegram import InputMediaPhoto, Update
 from telegram.ext import CallbackContext, CommandHandler, Updater
-import os
+
 from fetch import regions
 
 if os.environ.get("WITH_AWS", None):
@@ -25,7 +27,7 @@ if os.environ.get("WITH_AWS", None):
         aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", None),
         aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", None),
     )
-    s3 = session.resource('s3')
+    s3 = session.resource("s3")
 
 
 logging.basicConfig(
@@ -40,7 +42,7 @@ else:
     with open("token.txt", "r") as tk:
         token = tk.readline().strip()
 
-PORT = int(os.environ.get('PORT', '8443'))
+PORT = int(os.environ.get("PORT", "8443"))
 
 
 data_src = "https://raw.githubusercontent.com/italia/covid19-opendata-vaccini/master/dati/somministrazioni-vaccini-summary-latest.csv"
@@ -48,22 +50,30 @@ pop_src = "https://www.worldometers.info/world-population/italy-population/"
 pop_exp = r"The current population of <strong>Italy</strong> is <strong>(.*?)</strong>"
 pop_pattern = re.compile(pop_exp)
 
+
 def send_to_S3():
     # Filename - File to upload
     # Bucket - Bucket to upload to (the top level directory under AWS S3)
     # Key - S3 object name (can contain subdirectories). If not specified then file_name is used
-    s3.meta.client.upload_file(Filename="subscribed_users.txt", Bucket=os.environ.get("S3_BUCKET_NAME", None), Key="subscribed_users.txt")
+    s3.meta.client.upload_file(
+        Filename="subscribed_users.txt",
+        Bucket=os.environ.get("S3_BUCKET_NAME", None),
+        Key="subscribed_users.txt",
+    )
+
 
 def get_from_S3():
     try:
-        s3.Bucket(os.environ.get("S3_BUCKET_NAME", None)).download_file("subscribed_users.txt", "subscribed_users.txt")
+        s3.Bucket(os.environ.get("S3_BUCKET_NAME", None)).download_file(
+            "subscribed_users.txt", "subscribed_users.txt"
+        )
     except botocore.exceptions.ClientError as e:
-        if e.response['Error']['Code'] == "404":
+        if e.response["Error"]["Code"] == "404":
             print("The object does not exist.")
         else:
             raise
 
-    
+
 def get_population():
     r = requests.get(pop_src)
     it_pop = int(re.search(pop_pattern, r.text)[1].replace(",", ""))
@@ -247,6 +257,7 @@ def remove_subscription(name, context):
     if os.environ.get("WITH_AWS", None):
         send_to_S3()
 
+
 def subscribe(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat_id
 
@@ -295,7 +306,7 @@ def badbot(update: Update, context: CallbackContext) -> None:
 
 def main():
     updater = Updater(token, use_context=True)
-    
+
     if os.environ.get("WITH_AWS", None):
         get_from_S3()
     if os.path.isfile("subscribed_users.txt"):
@@ -304,7 +315,6 @@ def main():
     else:
         subscribed_users = []
         times = []
-
 
     for user in subscribed_users:
         updater.job_queue.run_daily(
@@ -327,17 +337,14 @@ def main():
     dispatcher.add_handler(CommandHandler("badbot", badbot))
 
     if os.environ.get("IS_HEROKU", None):
-        updater.start_webhook(listen="0.0.0.0",
-                              port=PORT,
-                              url_path=token)
+        updater.start_webhook(listen="0.0.0.0", port=PORT, url_path=token)
         # updater.bot.set_webhook(url=settings.WEBHOOK_URL)
         updater.bot.set_webhook(
-                "https://{}.herokuapp.com/".format(os.environ.get(
-                "APP_NAME", None)) + token)
+            "https://{}.herokuapp.com/".format(os.environ.get("APP_NAME", None)) + token
+        )
     else:
         updater.start_polling()
-        
-        
+
     updater.idle()
 
 

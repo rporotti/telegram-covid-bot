@@ -6,7 +6,8 @@ from datetime import date
 from datetime import datetime as dt
 from datetime import time
 from datetime import timedelta as td
-
+import boto3
+import botocore
 import geopandas as gpd
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -16,8 +17,16 @@ import requests
 from jinja2 import Template
 from telegram import InputMediaPhoto, Update
 from telegram.ext import CallbackContext, CommandHandler, Updater
-
+import os
 from fetch import regions
+
+
+session = boto3.Session(
+    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", None),
+    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", None),
+)
+s3 = session.resource('s3')
+
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -25,16 +34,36 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+if "TOKEN" in os.environ:
+    token = os.environ.get("TOKEN", None)
+else:
+    with open("token.txt", "r") as tk:
+        token = tk.readline().strip()
 
-with open("token.txt", "r") as tk:
-    token = tk.readline().strip()
+PORT = int(os.environ.get('PORT', '8443'))
+
 
 data_src = "https://raw.githubusercontent.com/italia/covid19-opendata-vaccini/master/dati/somministrazioni-vaccini-summary-latest.csv"
 pop_src = "https://www.worldometers.info/world-population/italy-population/"
 pop_exp = r"The current population of <strong>Italy</strong> is <strong>(.*?)</strong>"
 pop_pattern = re.compile(pop_exp)
 
+def send_to_S3():
+    # Filename - File to upload
+    # Bucket - Bucket to upload to (the top level directory under AWS S3)
+    # Key - S3 object name (can contain subdirectories). If not specified then file_name is used
+    s3.meta.client.upload_file(Filename="subscribed_users.txt", Bucket=os.environ.get("S3_BUCKET_NAME", None), Key="subscribed_users.txt")
 
+def get_from_S3():
+    try:
+        s3.Bucket(os.environ.get("S3_BUCKET_NAME", None)).download_file("subscribed_users.txt", "subscribed_users.txt")
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == "404":
+            print("The object does not exist.")
+        else:
+            raise
+
+    
 def get_population():
     r = requests.get(pop_src)
     it_pop = int(re.search(pop_pattern, r.text)[1].replace(",", ""))
@@ -215,7 +244,7 @@ def remove_subscription(name, context):
         for user in users:
             if user.strip("\n") != name:
                 su.write(user)
-
+    send_to_S3()
 
 def subscribe(update: Update, context: CallbackContext) -> None:
     chat_id = update.message.chat_id
@@ -233,7 +262,7 @@ def subscribe(update: Update, context: CallbackContext) -> None:
 
         with open("subscribed_users.txt", "a") as su:
             su.write(str(chat_id) + "\n")
-
+        send_to_S3()
         text = "You will receive daily updates at 20:00 CET."
 
     update.message.reply_text(text)
@@ -265,6 +294,7 @@ def badbot(update: Update, context: CallbackContext) -> None:
 def main():
     updater = Updater(token, use_context=True)
 
+    get_from_S3()
     with open("subscribed_users.txt", "r") as su:
         subscribed_users = [s.strip("\n") for s in su.readlines()]
 
@@ -288,7 +318,11 @@ def main():
     dispatcher.add_handler(CommandHandler("goodbot", goodbot))
     dispatcher.add_handler(CommandHandler("badbot", badbot))
 
-    updater.start_polling()
+    updater.start_webhook(listen="0.0.0.0",
+                          port=PORT,
+                          url_path=token)
+    # updater.bot.set_webhook(url=settings.WEBHOOK_URL)
+    updater.bot.set_webhook("https://vaccineitalybot.herokuapp.com/" + token)
 
     updater.idle()
 

@@ -51,21 +51,21 @@ pop_exp = r"The current population of <strong>Italy</strong> is <strong>(.*?)</s
 pop_pattern = re.compile(pop_exp)
 
 
-def send_to_S3():
+def send_to_S3(filename):
     # Filename - File to upload
     # Bucket - Bucket to upload to (the top level directory under AWS S3)
     # Key - S3 object name (can contain subdirectories). If not specified then file_name is used
     s3.meta.client.upload_file(
-        Filename="subscribed_users.txt",
+        Filename=filename,
         Bucket=os.environ.get("S3_BUCKET_NAME", None),
-        Key="subscribed_users.txt",
+        Key=filename,
     )
 
 
-def get_from_S3():
+def get_from_S3(filename):
     try:
         s3.Bucket(os.environ.get("S3_BUCKET_NAME", None)).download_file(
-            "subscribed_users.txt", "subscribed_users.txt"
+            filename, filename
         )
     except botocore.exceptions.ClientError as e:
         if e.response["Error"]["Code"] == "404":
@@ -255,7 +255,7 @@ def remove_subscription(name, context):
             if user.strip("\n") != name:
                 su.write(user)
     if os.environ.get("WITH_AWS", None):
-        send_to_S3()
+        send_to_S3("subscribed_users.txt")
 
 
 def subscribe(update: Update, context: CallbackContext) -> None:
@@ -275,7 +275,7 @@ def subscribe(update: Update, context: CallbackContext) -> None:
         with open("subscribed_users.txt", "a") as su:
             su.write(str(chat_id) + "\n")
         if os.environ.get("WITH_AWS", None):
-            send_to_S3()
+            send_to_S3("subscribed_users.txt")
         text = "You will receive daily updates at 20:00 CET."
 
     update.message.reply_text(text)
@@ -308,7 +308,7 @@ def main():
     updater = Updater(token, use_context=True)
 
     if os.environ.get("WITH_AWS", None):
-        get_from_S3()
+        get_from_S3("subscribed_users.txt")
     if os.path.isfile("subscribed_users.txt"):
         with open("subscribed_users.txt", "r") as su:
             subscribed_users = [s.strip("\n") for s in su.readlines()]

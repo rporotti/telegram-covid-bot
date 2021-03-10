@@ -292,7 +292,6 @@ def main():
 
     plot_daily_doses(df)
 
-
     plot_cumulative(df)
     plot_map(df)
 

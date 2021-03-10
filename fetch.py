@@ -198,7 +198,6 @@ def plot_daily_doses(df):
     ax.bar(df.index, df.prima_dose, label="1st dose")
     ax.bar(df.index, df.seconda_dose, bottom=df.prima_dose, label="2nd dose")
 
-    
     ax.plot(
         df.index,
         df.totale.rolling(window=7, min_periods=1, center=True).mean(),
@@ -292,6 +291,8 @@ def main():
     df = load_df()
 
     plot_daily_doses(df)
+
+
 #    plot_cumulative(df)
 #    plot_map(df)
 #

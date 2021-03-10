@@ -198,13 +198,15 @@ def plot_daily_doses(df):
     ax.bar(df.index, df.prima_dose, label="1st dose")
     ax.bar(df.index, df.seconda_dose, bottom=df.prima_dose, label="2nd dose")
 
-    window = 7
+    
     ax.plot(
         df.index,
-        np.convolve(df.prima_dose + df.seconda_dose, np.ones(window), "same") / window,
-        lw=2,
+        df.totale.rolling(window=7, min_periods=1, center=True).mean(),
+        lw=1,
+        marker="o",
+        markersize=3,
         color="ForestGreen",
-        label="Total",
+        label="Total (7-days moving average)",
     )
 
     fig.autofmt_xdate()
@@ -290,12 +292,12 @@ def main():
     df = load_df()
 
     plot_daily_doses(df)
-    plot_cumulative(df)
-    plot_map(df)
-
-    for region in regions:
-        plot_region(df, region)
-
+#    plot_cumulative(df)
+#    plot_map(df)
+#
+#    for region in regions:
+#        plot_region(df, region)
+#
 
 if __name__ == "__main__":
     main()

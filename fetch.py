@@ -293,12 +293,12 @@ def main():
     plot_daily_doses(df)
 
 
-#    plot_cumulative(df)
-#    plot_map(df)
-#
-#    for region in regions:
-#        plot_region(df, region)
-#
+    plot_cumulative(df)
+    plot_map(df)
+
+    for region in regions:
+        plot_region(df, region)
+
 
 if __name__ == "__main__":
     main()

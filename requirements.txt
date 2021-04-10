@@ -1,8 +1,9 @@
-pandas==1.0.3
+requests==2.25.1
+Jinja2==2.11.2
+pytz==2020.5
 geopandas==0.8.2
-matplotlib==3.3.0
-pytz==2019.3
-python_telegram_bot==13.2
-requests==2.23.0
-Jinja2==2.11.1
-boto3==1.17.10
+matplotlib==3.3.4
+numpy==1.20.1
+pandas==1.2.2
+boto3==1.17.49
+botocore==1.20.49

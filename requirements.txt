@@ -7,3 +7,4 @@ numpy==1.20.1
 pandas==1.2.2
 boto3==1.17.49
 botocore==1.20.49
+python-telegram-bot==13.2

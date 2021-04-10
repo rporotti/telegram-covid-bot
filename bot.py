@@ -36,8 +36,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-if "TOKEN" in os.environ:
-    token = os.environ.get("TOKEN", None)
+if "TELEGRAM_TOKEN" in os.environ:
+    token = os.environ.get("TELEGRAM_TOKEN", None)
 else:
     with open("token.txt", "r") as tk:
         token = tk.readline().strip()
